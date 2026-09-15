@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador de Gestión de Memoria — 16 MiB</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap" id="app">
+    <header>
+        <div class="kicker">SO · GESTIÓN DE MEMORIA</div>
+        <h1>Simulador de asignación de memoria principal</h1>
+        <p>Espacio direccionable de 16 MiB (0x000000 – 0xFFFFFF). Compara particiones estáticas de tamaño fijo, particiones estáticas de tamaño variable y particiones dinámicas con y sin compactación, usando primer/mejor/peor ajuste.</p>
+    </header>
+
+    <div class="layout">
+        <!-- COLUMNA IZQUIERDA -->
+        <div>
+            <scheme-panel></scheme-panel>
+            <process-list></process-list>
+        </div>
+
+        <!-- COLUMNA DERECHA -->
+        <div>
+            <section class="panel">
+                <h2>Mapa de memoria (0x000000 → 0xFFFFFF)</h2>
+                <memory-map></memory-map>
+                <memory-legend></memory-legend>
+                <memory-stats></memory-stats>
+            </section>
+
+            <section class="panel">
+                <h2>Tabla de bloques / particiones</h2>
+                <block-table></block-table>
+            </section>
+
+            <section class="panel">
+                <h2>Registro de eventos</h2>
+                <event-log></event-log>
+            </section>
+        </div>
+    </div>
+</div>
+
+<!-- Utilidades -->
+<script src="utils/hex.js"></script>
+<script src="utils/colors.js"></script>
+
+<script src="models/Segment.js"></script>
+<script src="models/ProcessTransitions.js"></script>
+<script src="models/Process.js"></script>
+<script src="memory/MemoryTransitions.js"></script>
+<script src="memory/MemoryBlock.js"></script>
+<script src="memory/AllocationAlgorithms.js"></script>
+<script src="memory/Memory.js"></script>
+<script src="memory/StaticMemory.js"></script>
+<script src="memory/DynamicMemory.js"></script>
+<script src="utils/createSegments.js"></script>
+<script src="data/DefaultProcessData.js"></script>
+
+<!-- Componentes (custom elements) -->
+<script src="components/process-card.js"></script>
+<script src="components/process-list.js"></script>
+<script src="components/scheme-panel.js"></script>
+<script src="components/memory-map.js"></script>
+<script src="components/memory-legend.js"></script>
+<script src="components/memory-stats.js"></script>
+<script src="components/block-table.js"></script>
+<script src="components/event-log.js"></script>
+
+<!-- Orquestador -->
+<script src="main.js"></script>
+</body>
+</html>
