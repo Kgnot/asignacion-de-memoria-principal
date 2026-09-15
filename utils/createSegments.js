@@ -1,5 +1,9 @@
-import Segment from "../models/Segment";
+(function () {
+    const NS = (window.MemSim = window.MemSim || {});
 
-export function createSegments(sizes) {
-    return Object.entries(sizes).map(([name, size]) => new Segment(name, size));
-}
+    function createSegments(sizes) {
+        return Object.entries(sizes).map(([name, size]) => new NS.Segment(name, size));
+    }
+
+    NS.createSegments = createSegments;
+})();

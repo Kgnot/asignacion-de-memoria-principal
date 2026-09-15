@@ -1,26 +1,34 @@
-export const PROCESS_STATES = Object.freeze({
-    WAITING: 'WAITING',
-    LOADED: 'LOADED',
-    TERMINATED: 'TERMINATED',
-})
+(function () {
+    const NS = (window.MemSim = window.MemSim || {});
 
-export const PROCESS_EVENTS = Object.freeze({
-    LOAD: 'LOAD',
-    UNLOAD: 'UNLOAD',
-    TERMINATE: 'TERMINATE',
-})
+    const PROCESS_STATES = Object.freeze({
+        WAITING: 'WAITING',
+        LOADED: 'LOADED',
+        TERMINATED: 'TERMINATED',
+    })
 
-const TRANSITIONS = Object.freeze({
-    [PROCESS_STATES.WAITING]: {
-        [PROCESS_EVENTS.LOAD]: PROCESS_STATES.LOADED,
-    },
-    [PROCESS_STATES.LOADED]: {
-        [PROCESS_EVENTS.UNLOAD]: PROCESS_STATES.WAITING,
-        [PROCESS_EVENTS.TERMINATED]: PROCESS_STATES.TERMINATED
-    },
-    [PROCESS_STATES.TERMINATE]: {}
-})
+    const PROCESS_EVENTS = Object.freeze({
+        LOAD: 'LOAD',
+        UNLOAD: 'UNLOAD',
+        TERMINATE: 'TERMINATE',
+    })
 
-export function transition(currentState, event) {
-    return TRANSITIONS[currentState]?.[event] ?? null;
-}
+    const TRANSITIONS = Object.freeze({
+        [PROCESS_STATES.WAITING]: {
+            [PROCESS_EVENTS.LOAD]: PROCESS_STATES.LOADED,
+        },
+        [PROCESS_STATES.LOADED]: {
+            [PROCESS_EVENTS.UNLOAD]: PROCESS_STATES.WAITING,
+            [PROCESS_EVENTS.TERMINATED]: PROCESS_STATES.TERMINATED
+        },
+        [PROCESS_STATES.TERMINATE]: {}
+    })
+
+    function transition(currentState, event) {
+        return TRANSITIONS[currentState]?.[event] ?? null;
+    }
+
+    NS.PROCESS_STATES = PROCESS_STATES;
+    NS.PROCESS_EVENTS = PROCESS_EVENTS;
+    NS.processTransition = transition;
+})();
