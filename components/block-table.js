@@ -4,7 +4,7 @@
 
     class BlockTable extends HTMLElement {
 
-        connectedCallback() {
+        ensureDOM() {
             if (!this.querySelector('table')) {
                 this.innerHTML = `
                     <table>
@@ -20,13 +20,22 @@
             }
         }
 
+        connectedCallback() {
+            this.ensureDOM();
+            if (this._memory) {
+                this.render();
+            }
+        }
+
         set data({memory, processes}) {
             this._memory = memory;
             this._processes = processes;
+            this.ensureDOM();
             this.render();
         }
 
         render() {
+            this.ensureDOM();
             const tbody = this.querySelector('[data-role="rows"]');
             if (!tbody || !this._memory) return;
             tbody.innerHTML = '';

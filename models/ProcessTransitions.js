@@ -19,10 +19,10 @@
         },
         [PROCESS_STATES.LOADED]: {
             [PROCESS_EVENTS.UNLOAD]: PROCESS_STATES.WAITING,
-            [PROCESS_EVENTS.TERMINATED]: PROCESS_STATES.TERMINATED
+            [PROCESS_EVENTS.TERMINATE]: PROCESS_STATES.TERMINATED,
         },
-        [PROCESS_STATES.TERMINATE]: {}
-    })
+        [PROCESS_STATES.TERMINATED]: {},
+    });
 
     function transition(currentState, event) {
         return TRANSITIONS[currentState]?.[event] ?? null;

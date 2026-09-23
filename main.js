@@ -47,6 +47,15 @@
             this.root.addEventListener('reset', () => this.applyScheme(this.scheme, this.lastParams, true, true));
             this.root.addEventListener('process-load', (e) => this.allocate(e.detail.id));
             this.root.addEventListener('process-free', (e) => this.freeProcess(e.detail.id));
+            this.root.addEventListener('process-add', (e) => this.addCustomProcess(e.detail));
+        }
+
+        addCustomProcess({name, segments}) {
+            const nextId = `P${this.processes.length + 1}`;
+            const newProc = new NS.Process(nextId, name, segments);
+            this.processes.push(newProc);
+            this.log(`✓ Proceso ${nextId} (${name}, ${newProc.getSize()} KiB) agregado a la lista.`, 'good');
+            this.render();
         }
 
         handleSchemeChange(scheme) {
@@ -83,7 +92,11 @@
                 return;
             }
 
-            this.processes = createDefaultProcesses();
+            if (!this.processes || this.processes.length === 0 || isReset) {
+                this.processes = createDefaultProcesses();
+            } else {
+                this.processes.forEach((p) => p.unload());
+            }
             this.compactionEnabled = false;
             this.schemePanel.setScheme(scheme);
             this.schemePanel.setCompaction(false);

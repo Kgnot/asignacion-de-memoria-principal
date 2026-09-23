@@ -25,8 +25,8 @@
                 occupied.occupy(process);
                 // ahora el remainder creamos uno que empieza donde termina el anterior
                 const remainder = new MemoryBlock(block.start + needed, block.size - needed);
-                // y el splice, vamos al index, eliminamos le bloque de memoria, y le añadimos los otros dos que son como sus "mitades"
-                this.blocks.splice(index, 1, occupied, remainder)
+                this.blocks.splice(index, 1, occupied, remainder);
+                occupiedBlock = occupied;
             }
             process.load(block.start);
             return occupiedBlock;
