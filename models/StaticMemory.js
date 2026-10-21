@@ -5,10 +5,10 @@
 // Memoria estatica con particiones fijas
     class StaticMemory extends Memory {
 
-        constructor(totalSize, partitionSizes) {
-            super(totalSize);
+        constructor(totalSize, partitionSizes, systemProcess = null) {
+            super(totalSize, systemProcess);
 
-            let start = 0;
+            let start = this.systemSize;
             for (const size of partitionSizes) {
                 this.blocks.push(new MemoryBlock(start, size));
                 start += size;
@@ -16,21 +16,23 @@
         }
 
         // metado de fabrica para crear particiones automaticamnete en base al toal
-        static equalPartitions(totalSize, count) {
-            const base = Math.floor(totalSize / count);
+        static equalPartitions(totalSize, count, systemProcess = null) {
+            const available = totalSize - (systemProcess ? systemProcess.getSize() : 0);
+            const base = Math.floor(available / count);
             const sizes = Array(count).fill(base);
-            sizes[count - 1] += totalSize - base * count;
-            return new StaticMemory(totalSize, sizes);
+            sizes[count - 1] += available - base * count;
+            return new StaticMemory(totalSize, sizes, systemProcess);
         }
 
         // metodo de fabrica para el tema de crear particiones manuales con un tamaño
-        static customPartitions(totalSize, partitionSizes) {
+        static customPartitions(totalSize, partitionSizes, systemProcess = null) {
+            const available = totalSize - (systemProcess ? systemProcess.getSize() : 0);
             const used = partitionSizes.reduce((a, b) => a + b, 0);
-            if (used > totalSize) {
-                throw new Error(`Las particiones suman ${used}, superan el total de ${totalSize}`);
+            if (used > available) {
+                throw new Error(`Las particiones suman ${used}, superan la memoria disponible de ${available}`);
             }
-            const sizes = used < totalSize ? [...partitionSizes, totalSize - used] : partitionSizes;
-            return new StaticMemory(totalSize, sizes);
+            const sizes = used < available ? [...partitionSizes, available - used] : partitionSizes;
+            return new StaticMemory(totalSize, sizes, systemProcess);
         }
     }
 

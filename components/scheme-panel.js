@@ -9,12 +9,16 @@
         render() {
             this.innerHTML = `
                 <section class="panel">
-                    <h2>Esquema de gestión</h2>
+                    <h2>Configuración de memoria</h2>
+                    <details data-role="configuration">
+                        <summary>Cambiar esquema de gestión</summary>
                     <div class="radiogroup" data-role="scheme-radios">
-                        <label><input type="radio" name="scheme" value="fixed" checked> Particiones estáticas — tamaño fijo</label>
+                        <label><input type="radio" name="scheme" value="unified" checked> Segmentación paginada unificada</label>
+                        <label><input type="radio" name="scheme" value="fixed"> Particiones estáticas — tamaño fijo</label>
                         <label><input type="radio" name="scheme" value="variable"> Particiones estáticas — tamaño variable</label>
                         <label><input type="radio" name="scheme" value="dynamic"> Particiones dinámicas</label>
                         <label><input type="radio" name="scheme" value="segmented"> Segmentación</label>
+                        <label><input type="radio" name="scheme" value="paging"> Paginación</label>
                     </div>
 
                     <div data-role="fixed-controls">
@@ -24,7 +28,7 @@
                     </div>
 
                     <div data-role="variable-controls" hidden>
-                        <label for="varSizes">Tamaños de partición (KiB, separados por coma)</label>
+                        <label for="varSizes">Tamaños de partición (bytes, separados por coma)</label>
                         <input type="text" id="varSizes" value="300,700,150,1500,450,2000,1000,10284">
                         <div class="btnrow"><button type="button" data-action="apply-variable">Aplicar tamaños</button></div>
                     </div>
@@ -41,7 +45,11 @@
                     </div>
 
                     <div data-role="segmented-controls" hidden>
-                        <p class="note">Cada segmento se coloca por separado. Los segmentos mayores de 256 KiB se dividen en varias partes.</p>
+                        <p class="note">Cada segmento se coloca por separado. Los segmentos mayores de 262144 bytes se dividen en varias partes.</p>
+                    </div>
+
+                    <div data-role="paging-controls" hidden>
+                        <p class="note">Páginas de 65.536 bytes y marcos físicos de tamaño fijo. El S.O. ocupa los primeros 16 marcos.</p>
                     </div>
 
                     <label for="algoSelect">Algoritmo de asignación</label>
@@ -54,6 +62,7 @@
                     <div class="btnrow">
                         <button type="button" class="primary" data-action="reset">Reiniciar simulación</button>
                     </div>
+                    </details>
                 </section>
             `;
         }
@@ -65,6 +74,7 @@
                     this.querySelector('[data-role="variable-controls"]').hidden = e.target.value !== 'variable';
                     this.querySelector('[data-role="dynamic-controls"]').hidden = e.target.value !== 'dynamic';
                     this.querySelector('[data-role="segmented-controls"]').hidden = e.target.value !== 'segmented';
+                    this.querySelector('[data-role="paging-controls"]').hidden = e.target.value !== 'paging';
                     this.emit('scheme-change', {scheme: e.target.value});
                 });
             });
@@ -108,6 +118,7 @@
             this.querySelector('[data-role="variable-controls"]').hidden = scheme !== 'variable';
             this.querySelector('[data-role="dynamic-controls"]').hidden = scheme !== 'dynamic';
             this.querySelector('[data-role="segmented-controls"]').hidden = scheme !== 'segmented';
+            this.querySelector('[data-role="paging-controls"]').hidden = scheme !== 'paging';
         }
 
         setCompaction(enabled) {

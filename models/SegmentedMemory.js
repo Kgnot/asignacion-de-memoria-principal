@@ -1,49 +1,66 @@
 (function () {
     const NS = (window.MemSim = window.MemSim || {});
-    const {Memory, MemoryBlock, chooseBlock} = NS;
+    const {Memory, MemoryBlock, Segment, chooseBlock} = NS;
 
     class SegmentedMemory extends Memory {
 
-        constructor(totalSize, segmentLimit = 256) {
-            super(totalSize);
+        constructor(totalSize, systemProcess = null, segmentLimit = 262144) {
+            super(totalSize, systemProcess);
             this.segmentLimit = segmentLimit;
-            this.blocks.push(new MemoryBlock(0, totalSize));
+            this.blocks.push(new MemoryBlock(this.systemSize, totalSize - this.systemSize));
         }
 
         allocate(process, algorithm) {
+            if (!process || !process.isWaiting()) {
+                throw new Error(`El proceso ${process ? process.id : ''} ya está cargado o no es válido`);
+            }
             const pieces = [];
-            process.segments.forEach((segment) => {
-                let remaining = segment.size;
+            process.sections.forEach((section) => {
+                let remaining = section.size;
                 let pieceIndex = 0;
                 while (remaining > 0) {
                     const size = Math.min(remaining, this.segmentLimit);
-                    pieces.push({name: segment.name, index: pieceIndex, size});
+                    pieces.push({
+                        name: section.name,
+                        index: pieceIndex,
+                        size,
+                        permissions: section.permissions,
+                    });
                     remaining -= size;
                     pieceIndex += 1;
                 }
             });
 
             const allocated = [];
-            for (const piece of pieces) {
+            const segmentTable = [];
+            for (const [segmentNumber, piece] of pieces.entries()) {
                 const chosen = chooseBlock(this.findCandidates(piece.size), algorithm);
                 if (!chosen) {
                     allocated.forEach((block) => this.releaseBlock(block));
+                    process.segmentTable = [];
+                    this.mergeAdjacentFreeBlocks();
                     return null;
                 }
-                const block = this.splitAndAssign(chosen, process, piece);
+                const block = this.splitAndAssign(chosen, process, piece, segmentNumber);
+                const segment = new Segment(segmentNumber, block.start, block.size, piece.permissions, piece.name);
+                block.segment = segment;
+                segmentTable.push(segment);
                 allocated.push(block);
             }
 
-            process.load(allocated[0].start);
             process.segmentBlocks = allocated;
+            process.segmentTable = segmentTable;
+            process.load({segmentTable});
             return allocated[0];
         }
 
-        splitAndAssign(block, process, piece) {
+        splitAndAssign(block, process, piece, segmentNumber) {
             const index = this.blocks.indexOf(block);
             const occupied = new MemoryBlock(block.start, piece.size, {
                 segmentName: piece.name,
                 segmentIndex: piece.index,
+                segmentNumber,
+                permissions: piece.permissions,
             });
             occupied.occupy(process);
             const replacement = [occupied];
@@ -56,10 +73,25 @@
 
         releaseBlock(block) {
             if (block.isOccupied()) block.release();
+            block.segment = null;
+            block.segmentName = null;
+            block.segmentIndex = null;
+            block.segmentNumber = null;
+            block.permissions = null;
         }
 
         getBlockOf(process) {
             return this.blocks.find((block) => block.processId === process.id);
+        }
+
+        translateSegment(process, segmentNumber, offset, access = 'R') {
+            const segment = process.segmentTable.find((entry) => entry.number === segmentNumber);
+            if (!segment) throw new Error(`Segmento ${segmentNumber} no existe en ${process.id}`);
+            return segment.translate(offset, access);
+        }
+
+        translate(process, segmentNumber, offset, access = 'R') {
+            return this.translateSegment(process, segmentNumber, offset, access);
         }
 
         free(process) {
@@ -67,6 +99,7 @@
                 .filter((block) => block.processId === process.id)
                 .forEach((block) => this.releaseBlock(block));
             process.segmentBlocks = [];
+            process.segmentTable = [];
             process.unload();
             this.mergeAdjacentFreeBlocks();
         }
@@ -81,6 +114,40 @@
                     this.blocks.splice(i, 1);
                 }
             }
+        }
+
+        compact(processesById) {
+            this.sortByStart();
+            const occupied = this.getOccupiedBlocks().filter((block) => block.processId !== 'SO');
+            const systemBlock = this.getOccupiedBlocks().find((block) => block.processId === 'SO');
+            const newBlocks = systemBlock ? [systemBlock] : [];
+            let nextBase = this.systemSize;
+
+            for (const block of occupied) {
+                const relocated = new MemoryBlock(nextBase, block.size, {
+                    segmentName: block.segmentName,
+                    segmentIndex: block.segmentIndex,
+                    segmentNumber: block.segmentNumber,
+                    permissions: block.permissions,
+                });
+                relocated.occupyWithId(block.processId);
+                relocated.segment = block.segment;
+                if (relocated.segment) relocated.segment.base = nextBase;
+                newBlocks.push(relocated);
+
+                const process = processesById.get(block.processId);
+                if (process) {
+                    const segment = process.segmentTable.find((entry) => entry.number === block.segmentNumber);
+                    if (segment) segment.base = nextBase;
+                    process.segmentBlocks = process.segmentBlocks.map((candidate) => candidate === block ? relocated : candidate);
+                }
+                nextBase += block.size;
+            }
+
+            if (nextBase < this.totalSize) {
+                newBlocks.push(new MemoryBlock(nextBase, this.totalSize - nextBase));
+            }
+            this.blocks = newBlocks;
         }
     }
 

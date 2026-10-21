@@ -33,7 +33,14 @@
             for (const block of sorted) {
                 const div = document.createElement('div');
                 div.className = 'block' + (block.isFree() ? ' free' : '');
-                div.style.width = (block.size / total * 100) + '%';
+                const widthRatio = block.size / total;
+                div.style.width = (widthRatio * 100) + '%';
+                div.style.flex = `0 1 ${widthRatio * 100}%`;
+                div.tabIndex = 0;
+                div.setAttribute('role', 'button');
+                div.setAttribute('aria-label', block.isFree()
+                    ? `Bloque libre de ${block.size} bytes`
+                    : `Bloque del proceso ${block.processId}`);
 
                 if (block.isOccupied()) {
                     const proc = this._processes.find((p) => p.id === block.processId);
@@ -50,16 +57,33 @@
 
                     const lbl = document.createElement('span');
                     lbl.className = 'lbl';
-                    lbl.textContent = block.size / total > 0.04 ? block.processId : '';
+                    lbl.textContent = widthRatio > 0.04 ? block.processId : '';
+                    if (widthRatio <= 0.04) div.classList.add('compact');
                     div.appendChild(lbl);
 
                     const unit = block.segmentName
                         ? `segmento ${block.segmentName}.${block.segmentIndex}`
-                        : `${block.size} KiB partición`;
-                    div.title = `${block.processId} · ${toHex(block.start)}–${toHex(block.getEnd())} · ${unit} · ${block.size} KiB${frag > 0 ? ` · ${frag} KiB frag. interna` : ''}`;
+                        : block.pageNumber !== null && block.pageNumber !== undefined
+                            ? `página ${block.pageNumber}, marco ${block.frameNumber}`
+                            : `${block.size} bytes partición`;
+                    div.title = `${block.processId} · ${toHex(block.start)}–${toHex(block.getEnd())} · ${unit} · ${block.size} bytes${frag > 0 ? ` · ${frag} bytes frag. interna` : ''}`;
                 } else {
-                    div.title = `Libre · ${toHex(block.start)}–${toHex(block.getEnd())} · ${block.size} KiB`;
+                    div.title = `Libre · ${toHex(block.start)}–${toHex(block.getEnd())} · ${block.size} bytes`;
                 }
+
+                const selectBlock = () => {
+                    this.dispatchEvent(new CustomEvent('memory-block-select', {
+                        detail: {block, process: this._processes.find((p) => p.id === block.processId) || null},
+                        bubbles: true,
+                    }));
+                };
+                div.addEventListener('click', selectBlock);
+                div.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        selectBlock();
+                    }
+                });
 
                 bar.appendChild(div);
             }

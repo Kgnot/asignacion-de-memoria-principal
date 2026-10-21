@@ -13,7 +13,7 @@
     <header>
         <div class="kicker">SO · GESTIÓN DE MEMORIA</div>
         <h1>Simulador de asignación de memoria principal</h1>
-        <p>Espacio direccionable de 16 MiB (0x000000 – 0xFFFFFF). Compara particiones estáticas, particiones dinámicas y segmentación con primer/mejor/peor ajuste.</p>
+        <p>Espacio direccionable de 16 MiB (0x000000 – 0xFFFFFF). Compara particiones, segmentación y paginación con primer/mejor/peor ajuste.</p>
     </header>
 
     <div class="layout">
@@ -25,7 +25,7 @@
 
         <!-- COLUMNA DERECHA -->
         <div>
-            <section class="panel">
+            <section class="panel memory-panel">
                 <h2>Mapa de memoria (0x000000 → 0xFFFFFF)</h2>
                 <memory-map></memory-map>
                 <memory-legend></memory-legend>
@@ -43,6 +43,7 @@
             </section>
         </div>
     </div>
+    <process-details-modal></process-details-modal>
 </div>
 
 <!-- Utilidades -->
@@ -50,6 +51,7 @@
 <script src="utils/colors.js"></script>
 
 <!-- Modelos (orden importa: cada uno depende del anterior) -->
+<script src="models/ProgramSection.js"></script>
 <script src="models/Segment.js"></script>
 <script src="models/ProcessTransitions.js"></script>
 <script src="models/Process.js"></script>
@@ -60,7 +62,10 @@
 <script src="models/StaticMemory.js"></script>
 <script src="models/DynamicMemory.js"></script>
 <script src="models/SegmentedMemory.js"></script>
-<script src="utils/createSegments.js"></script>
+<script src="models/PagingMemory.js"></script>
+<script src="models/UnifiedMemory.js"></script>
+<script src="models/MemoryManager.js"></script>
+<script src="utils/createSections.js"></script>
 <script src="data/DefaultProcessData.js"></script>
 
 <!-- Componentes (custom elements) -->
@@ -72,6 +77,7 @@
 <script src="components/memory-stats.js"></script>
 <script src="components/block-table.js"></script>
 <script src="components/event-log.js"></script>
+<script src="components/process-details-modal.js"></script>
 
 <!-- Orquestador -->
 <script src="main.js"></script>

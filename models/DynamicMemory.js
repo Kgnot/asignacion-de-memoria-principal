@@ -4,10 +4,10 @@
 
     class DynamicMemory extends Memory {
 
-        constructor(totalSize) {
-            super(totalSize);
+        constructor(totalSize, systemProcess = null) {
+            super(totalSize, systemProcess);
             // arrancamos como un unico apartado grande
-            this.blocks.push(new MemoryBlock(0, totalSize))
+            this.blocks.push(new MemoryBlock(this.systemSize, totalSize - this.systemSize))
         }
 
 
@@ -23,12 +23,13 @@
                 // ahora creamos un nuevo bloque de memoria y le asignamos el proceso con la cantidad exacta de bits
                 const occupied = new MemoryBlock(block.start, needed);
                 occupied.occupy(process);
+                occupiedBlock = occupied;
                 // ahora el remainder creamos uno que empieza donde termina el anterior
                 const remainder = new MemoryBlock(block.start + needed, block.size - needed);
                 // y el splice, vamos al index, eliminamos le bloque de memoria, y le añadimos los otros dos que son como sus "mitades"
                 this.blocks.splice(index, 1, occupied, remainder)
             }
-            process.load(block.start);
+            process.load();
             return occupiedBlock;
         }
 
@@ -54,16 +55,17 @@
             this.sortByStart(); // ordenamos por inicio
             const occupied = this.getOccupiedBlocks(); // obtenemos los bloques ocupados (por el filter)
 
-            let start = 0;
-            const newBlocks = [];
+            const systemBlock = occupied.find((block) => block.processId === 'SO');
+            let start = this.systemSize;
+            const newBlocks = systemBlock ? [systemBlock] : [];
 
-            for (const block of occupied) { // cada uno de los bloques ocupados
+            for (const block of occupied.filter((candidate) => candidate.processId !== 'SO')) { // cada uno de los bloques ocupados
                 const relocated = new MemoryBlock(start, block.size); // creamos uno iniciando start en 0
                 relocated.occupyWithId(block.processId); // al bloque de memoria le asignamos el id del proceso
                 newBlocks.push(relocated); // y al array de nuevos bloques lo agregamos
                 // ahora actualizamos la posición del bloque en el proceso
                 const process = processesById.get(block.processId);
-                if (process) process.blockStart = start; //
+                if (process) process.compactStart = start;
 
                 start += block.size;
             }

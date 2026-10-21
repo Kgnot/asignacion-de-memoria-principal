@@ -1,13 +1,19 @@
 (function () {
     const NS = (window.MemSim = window.MemSim || {});
-    const {chooseBlock} = NS;
+    const {chooseBlock, MemoryBlock} = NS;
 
     class Memory {
 
 
-        constructor(totalSize) {
+        constructor(totalSize, systemProcess = null, systemSize = 1048576) {
             this.totalSize = totalSize;
+            this.systemSize = systemProcess ? systemSize : 0;
             this.blocks = []; // MemoryBlock (class)
+            if (systemProcess) {
+                const systemBlock = new MemoryBlock(0, this.systemSize);
+                systemBlock.occupy(systemProcess);
+                this.blocks.push(systemBlock);
+            }
         }
 
         getFreeBlocks() {
@@ -32,6 +38,9 @@
 
         // apartados para algunas subclases
         allocate(process, algorithm) {
+            if (!process || !process.isWaiting()) {
+                throw new Error(`El proceso ${process ? process.id : ''} ya está cargado o no es válido`);
+            }
             const candidates = this.findCandidates(process.getSize());
             const chosen = chooseBlock(candidates, algorithm);
             if (!chosen) return null;
@@ -56,7 +65,7 @@
         // Por defecto: el proceso ocupa el bloque completo -> (comportamiento estático).
         assign(block, process) {
             block.occupy(process);
-            process.load(block.start);
+            process.load();
             return block;  // devolvemos el bloque
         }
 
@@ -69,6 +78,7 @@
                 totalOccupied: occupied.reduce((sum, b) => sum + b.size, 0),
                 holeCount: free.length,
                 largestHole: free.length ? Math.max(...free.map((b) => b.size)) : 0,
+                total: this.totalSize,
             };
         }
 

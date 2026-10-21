@@ -8,10 +8,10 @@
 
         render(stats, internalFrag) {
             const items = [
-                ['Memoria ocupada', stats.totalOccupied + ' KiB'],
-                ['Memoria libre', stats.totalFree + ' KiB'],
-                ['Fragmentación interna', internalFrag + ' KiB'],
-                ['Huecos libres / mayor', `${stats.holeCount} / ${stats.largestHole} KiB`],
+                ['Memoria ocupada', stats.totalOccupied + ' bytes'],
+                ['Memoria libre', stats.totalFree + ' bytes'],
+                ['Fragmentación interna', internalFrag + ' bytes'],
+                ['Huecos libres / mayor', `${stats.holeCount} / ${stats.largestHole} bytes`],
             ];
 
             this.innerHTML = `

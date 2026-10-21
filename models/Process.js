@@ -5,18 +5,22 @@
     class Process {
 
 
-        constructor(id, name, segments) {
+        constructor(id, name, sections, kind = 'application') {
             this.id = id;
             this.name = name;
-            this.segments = segments; // Es un arreglo de segmentos
+            this.sections = sections;
+            this.segments = sections;
+            this.kind = kind;
 
             this.status = PROCESS_STATES.WAITING;
-            this.blockStart = null;
+            this.segmentTable = [];
+            this.pageTable = [];
+            this.frames = [];
         }
 
 
         getSize() {
-            return this.segments.reduce((total, segment) => total + segment.size, 0);
+            return this.sections.reduce((total, section) => total + section.size, 0);
         }
 
         // pregunta si el evento tiene una transicion valida desde el actual
@@ -35,19 +39,25 @@
             return nextState;
         }
 
-        load(blockStart) {
+        load(allocation = {}) {
             this.dispatch(PROCESS_EVENTS.LOAD);
-            this.blockStart = blockStart;
+            this.segmentTable = allocation.segmentTable || [];
+            this.pageTable = allocation.pageTable || [];
+            this.frames = allocation.frames || [];
         }
 
         unload() {
             this.dispatch(PROCESS_EVENTS.UNLOAD);
-            this.blockStart = null;
+            this.segmentTable = [];
+            this.pageTable = [];
+            this.frames = [];
         }
 
         terminate() {
             this.dispatch(PROCESS_EVENTS.TERMINATE);
-            this.blockStart = null;
+            this.segmentTable = [];
+            this.pageTable = [];
+            this.frames = [];
         }
 
         isWaiting() {
@@ -62,7 +72,37 @@
             return this.status === PROCESS_STATES.TERMINATED;
         }
 
+        isSystem() {
+            return this.kind === 'system';
+        }
+
+        isApplication() {
+            return this.kind === 'application';
+        }
+
     }
 
     NS.Process = Process;
+
+    class SystemProcess extends Process {
+        constructor(size) {
+            super('SO', 'Sistema operativo', [new NS.ProgramSection('kernel', size)], 'system');
+            this.load();
+        }
+    }
+
+    class ApplicationProcess extends Process {
+        constructor(id, name, sections, baseId = id) {
+            super(id, name, sections, 'application');
+            this.baseId = baseId;
+        }
+
+        clone(id) {
+            const sections = this.sections.map((section) => new NS.ProgramSection(section.name, section.size, section.permissions));
+            return new ApplicationProcess(id, this.name, sections, this.baseId);
+        }
+    }
+
+    NS.SystemProcess = SystemProcess;
+    NS.ApplicationProcess = ApplicationProcess;
 })();

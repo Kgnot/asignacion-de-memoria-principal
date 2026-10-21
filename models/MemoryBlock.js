@@ -10,6 +10,10 @@
             this.size = size;
             this.segmentName = metadata.segmentName || null;
             this.segmentIndex = metadata.segmentIndex ?? null;
+            this.segmentNumber = metadata.segmentNumber ?? null;
+            this.permissions = metadata.permissions || null;
+            this.pageNumber = metadata.pageNumber ?? null;
+            this.frameNumber = metadata.frameNumber ?? null;
 
             this.status = BLOCK_STATES.FREE;
             this.processId = null;
