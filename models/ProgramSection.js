@@ -12,6 +12,21 @@
             this.permissions = permissions;
         }
 
+        split(limit) {
+            const parts = [];
+            let remaining = this.size;
+            let part = 0;
+            while (remaining > 0) {
+                const size = Math.min(remaining, limit);
+                const section = new ProgramSection(this.name, size, this.permissions);
+                section.part = part;
+                parts.push(section);
+                remaining -= size;
+                part += 1;
+            }
+            return parts;
+        }
+
         describe() {
             return `${this.name}: ${this.size} bytes (${this.permissions})`;
         }

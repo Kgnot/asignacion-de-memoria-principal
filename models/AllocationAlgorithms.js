@@ -12,11 +12,11 @@
     }
 
     function bestFit(candidates) {
-        return [...candidates].sort((a, b) => a.size - b.size)[0];
+        return [...candidates].sort((a, b) => (a.size - b.size) || (a.start - b.start))[0];
     }
 
     function worstFit(candidates) {
-        return [...candidates].sort((a, b) => b.size - a.size)[0];
+        return [...candidates].sort((a, b) => (b.size - a.size) || (a.start - b.start))[0];
     }
 
 // relacionamos u¿n algorutmo con la referencia de la funcion

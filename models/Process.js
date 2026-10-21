@@ -16,11 +16,16 @@
             this.segmentTable = [];
             this.pageTable = [];
             this.frames = [];
+            this.segmentBlocks = [];
         }
 
 
         getSize() {
             return this.sections.reduce((total, section) => total + section.size, 0);
+        }
+
+        splitSections(limit) {
+            return this.sections.flatMap((section) => section.split(limit));
         }
 
         // pregunta si el evento tiene una transicion valida desde el actual

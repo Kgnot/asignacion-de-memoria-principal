@@ -26,8 +26,8 @@
                 occupiedBlock = occupied;
                 // ahora el remainder creamos uno que empieza donde termina el anterior
                 const remainder = new MemoryBlock(block.start + needed, block.size - needed);
-                // y el splice, vamos al index, eliminamos le bloque de memoria, y le añadimos los otros dos que son como sus "mitades"
-                this.blocks.splice(index, 1, occupied, remainder)
+                this.blocks.splice(index, 1, occupied, remainder);
+                occupiedBlock = occupied;
             }
             process.load();
             return occupiedBlock;
@@ -36,6 +36,20 @@
         // al liberar intentamos fusionar con vecinos libres indemdiatamente
         afterFree() {
             this.mergeAdjacentFreeBlocks();
+        }
+
+        getAllocationView(process) {
+            const block = this.getBlockOf(process);
+            const rows = process.sections.map((section, number) => ({
+                number,
+                bin: number.toString(2).padStart(6, '0'),
+                name: section.name,
+                limit: section.size,
+                permissions: section.permissions,
+                base: block ? block.start : null,
+                pages: [],
+            }));
+            return {pid: process.id, name: process.name, status: process.status, totalSize: process.getSize(), segmentCount: rows.length, rows, footer: {occupiedBytes: process.isLoaded() ? process.getSize() : 0, reservedBytes: process.isLoaded() ? process.getSize() : 0, internalFragmentation: 0}};
         }
 
         mergeAdjacentFreeBlocks() {

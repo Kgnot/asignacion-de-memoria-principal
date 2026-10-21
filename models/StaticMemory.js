@@ -34,6 +34,11 @@
             const sizes = used < available ? [...partitionSizes, available - used] : partitionSizes;
             return new StaticMemory(totalSize, sizes, systemProcess);
         }
+
+        getInternalFragmentation(process) {
+            const block = this.getBlockOf(process);
+            return block ? block.size - process.getSize() : 0;
+        }
     }
 
     NS.StaticMemory = StaticMemory;

@@ -1,17 +1,16 @@
 (function () {
     const NS = (window.MemSim = window.MemSim || {});
     const {Memory, MemoryBlock, Segment} = NS;
+    const config = NS.MEMORY_CONFIG;
 
     class UnifiedMemory extends Memory {
 
-        constructor(totalSize, systemProcess = null, segmentSize = 262144, pageSize = 65536) {
-            super(totalSize, systemProcess, pageSize * 16);
+        constructor(totalSize, systemProcess = null, segmentSize = config.segmentSize, pageSize = config.pageSize) {
+            super(totalSize, systemProcess, pageSize * config.systemFrameCount);
             this.segmentSize = segmentSize;
             this.pageSize = pageSize;
             this.frameCount = totalSize / pageSize;
-            this.frameTable = Array(this.frameCount).fill(-1);
             this.systemFrameCount = systemProcess ? this.systemSize / pageSize : 0;
-            if (systemProcess) this.frameTable.fill(0, 0, this.systemFrameCount);
             for (let frame = this.systemFrameCount; frame < this.frameCount; frame += 1) {
                 this.blocks.push(new MemoryBlock(frame * pageSize, pageSize, {frameNumber: frame}));
             }
@@ -21,24 +20,19 @@
             if (!process || !process.isWaiting()) {
                 throw new Error(`El proceso ${process ? process.id : ''} ya está cargado o no es válido`);
             }
-            const segments = [];
-            process.sections.forEach((section) => {
-                let remaining = section.size;
-                let sectionPart = 0;
-                while (remaining > 0) {
-                    const size = Math.min(remaining, this.segmentSize);
-                    segments.push({name: section.name, part: sectionPart, size, permissions: section.permissions});
-                    remaining -= size;
-                    sectionPart += 1;
-                }
-            });
-            if (segments.length > 64) throw new Error(`El proceso ${process.id} necesita más de 64 segmentos`);
+            const segments = process.splitSections(this.segmentSize).map((section) => ({
+                name: section.name,
+                part: section.part,
+                size: section.size,
+                permissions: section.permissions,
+            }));
+            if (segments.length > config.maxSegments) throw new Error(`El proceso ${process.id} necesita más de ${config.maxSegments} segmentos`);
 
             const allocated = [];
             const segmentTable = [];
             for (const [number, definition] of segments.entries()) {
                 const pageCount = Math.ceil(definition.size / this.pageSize);
-                if (pageCount > 4) throw new Error(`El segmento ${number} supera las 4 páginas permitidas`);
+                if (pageCount > config.pagesPerSegment) throw new Error(`El segmento ${number} supera las ${config.pagesPerSegment} páginas permitidas`);
                 const pageTable = [];
                 for (let page = 0; page < pageCount; page += 1) {
                     const block = this.freeFrame();
@@ -54,7 +48,6 @@
                     block.permissions = definition.permissions;
                     const frame = block.start / this.pageSize;
                     const remaining = definition.size - page * this.pageSize;
-                    this.frameTable[frame] = process.id;
                     pageTable.push({
                         page,
                         frame,
@@ -63,13 +56,13 @@
                     });
                     allocated.push(block);
                 }
-                const segment = new Segment(
+                const segment = new Segment({
                     number,
-                    pageTable[0].frame * this.pageSize,
-                    definition.size,
-                    definition.permissions,
-                    definition.name,
-                );
+                    base: null,
+                    limit: definition.size,
+                    permissions: definition.permissions,
+                    sectionName: definition.name,
+                });
                 segment.sectionPart = definition.part;
                 segment.pageTable = pageTable;
                 segmentTable.push(segment);
@@ -81,19 +74,22 @@
         }
 
         freeFrame() {
-            return this.blocks
-                .filter((block) => block.isFree())
-                .sort((a, b) => a.start - b.start)[0] || null;
+            return this.blocks.find((block) => block.isFree()) || null;
         }
 
         releaseFrame(block) {
-            const frame = block.start / this.pageSize;
             if (block.isOccupied()) block.release();
             block.segmentNumber = null;
             block.pageNumber = null;
             block.segmentName = null;
             block.permissions = null;
-            this.frameTable[frame] = -1;
+        }
+
+        get frameTable() {
+            return this.blocks.reduce((table, block) => {
+                table[block.start / this.pageSize] = block.isFree() ? -1 : block.processId === 'SO' ? 0 : block.processId;
+                return table;
+            }, Array(this.frameCount).fill(-1));
         }
 
         unload(process) {
@@ -104,12 +100,12 @@
         }
 
         translate(process, logicalAddress, access = 'R') {
-            if (!Number.isInteger(logicalAddress) || logicalAddress < 0 || logicalAddress >= 16777216) {
+            if (!Number.isInteger(logicalAddress) || logicalAddress < 0 || logicalAddress >= config.ramBytes) {
                 throw new Error(`Dirección lógica inválida: ${logicalAddress}`);
             }
-            const segmentNumber = logicalAddress >>> 18;
-            const page = (logicalAddress >>> 16) & 0x03;
-            const offset = logicalAddress & 0xFFFF;
+            const segmentNumber = logicalAddress >>> (config.pageBits + config.offsetBits);
+            const page = (logicalAddress >>> config.offsetBits) & (config.pagesPerSegment - 1);
+            const offset = logicalAddress & (config.pageSize - 1);
             const segment = process.segmentTable.find((candidate) => candidate.number === segmentNumber);
             if (!segment) throw new Error(`Segmento ${segmentNumber} no existe en ${process.id}`);
             if (offset + page * this.pageSize >= segment.limit) {
@@ -128,6 +124,14 @@
                 const last = segment.pageTable[segment.pageTable.length - 1];
                 return total + (this.pageSize - last.validBytes) % this.pageSize;
             }, 0);
+        }
+
+        getAllocationView(process) {
+            const rows = process.isLoaded() && process.segmentTable.length
+                ? process.segmentTable.map((segment) => ({number: segment.number, bin: segment.number.toString(2).padStart(6, '0'), name: segment.sectionName, limit: segment.limit, permissions: segment.permissions, base: null, pages: segment.pageTable.map((page) => ({page: page.page, frame: page.frame, physicalBase: page.frame * this.pageSize}))}))
+                : process.sections.map((section, number) => ({number, bin: number.toString(2).padStart(6, '0'), name: section.name, limit: section.size, permissions: section.permissions, base: null, pages: []}));
+            const reservedBytes = rows.reduce((sum, row) => sum + row.pages.length * this.pageSize, 0);
+            return {pid: process.id, name: process.name, status: process.status, totalSize: process.getSize(), segmentCount: rows.length, rows, footer: {occupiedBytes: process.isLoaded() ? process.getSize() : 0, reservedBytes, internalFragmentation: Math.max(0, reservedBytes - (process.isLoaded() ? process.getSize() : 0))}};
         }
     }
 

@@ -1,11 +1,12 @@
 (function () {
     const NS = (window.MemSim = window.MemSim || {});
     const {chooseBlock, MemoryBlock} = NS;
+    const config = NS.MEMORY_CONFIG;
 
     class Memory {
 
 
-        constructor(totalSize, systemProcess = null, systemSize = 1048576) {
+        constructor(totalSize, systemProcess = null, systemSize = config.osBytes) {
             this.totalSize = totalSize;
             this.systemSize = systemProcess ? systemSize : 0;
             this.blocks = []; // MemoryBlock (class)
@@ -48,6 +49,10 @@
             return this.assign(chosen, process);
         }
 
+        load(process, algorithm) {
+            return this.allocate(process, algorithm);
+        }
+
         free(process) {
             const block = this.getBlockOf(process);
             if (!block) return;
@@ -55,6 +60,14 @@
             block.release();
             process.unload();
             this.afterFree(block);
+        }
+
+        unload(process) {
+            return this.free(process);
+        }
+
+        translate() {
+            throw new Error('La traducción lógica no está soportada por este esquema');
         }
 
         // Apartados para las subclases
@@ -79,6 +92,30 @@
                 holeCount: free.length,
                 largestHole: free.length ? Math.max(...free.map((b) => b.size)) : 0,
                 total: this.totalSize,
+            };
+        }
+
+        getInternalFragmentation() {
+            return 0;
+        }
+
+        getAllocationView(process) {
+            return {
+                pid: process.id,
+                name: process.name,
+                status: process.status,
+                totalSize: process.getSize(),
+                segmentCount: process.sections.length,
+                rows: process.sections.map((section, number) => ({
+                    number,
+                    bin: number.toString(2).padStart(6, '0'),
+                    name: section.name,
+                    limit: section.size,
+                    permissions: section.permissions,
+                    base: null,
+                    pages: [],
+                })),
+                footer: {occupiedBytes: process.isLoaded() ? process.getSize() : 0, reservedBytes: 0, internalFragmentation: 0},
             };
         }
 

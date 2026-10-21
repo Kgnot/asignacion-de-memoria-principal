@@ -4,7 +4,7 @@
 
     class MemoryMap extends HTMLElement {
 
-        connectedCallback() {
+        ensureDOM() {
             if (!this.querySelector('.memmap')) {
                 this.innerHTML = `
                     <div class="memmap" data-role="bar"></div>
@@ -15,13 +15,22 @@
             }
         }
 
+        connectedCallback() {
+            this.ensureDOM();
+            if (this._memory) {
+                this.render();
+            }
+        }
+
         set data({memory, processes}) {
             this._memory = memory;
             this._processes = processes;
+            this.ensureDOM();
             this.render();
         }
 
         render() {
+            this.ensureDOM();
             const bar = this.querySelector('[data-role="bar"]');
             if (!bar || !this._memory) return;
             bar.innerHTML = '';
@@ -47,7 +56,7 @@
                     const color = colorForIndex(processIndex.get(block.processId) ?? 0);
                     div.style.background = color;
 
-                    const frag = this._memory instanceof NS.SegmentedMemory ? 0 : block.internalFragmentation(proc);
+                    const frag = proc ? this._memory.getInternalFragmentation(proc) : 0;
                     if (frag > 0) {
                         const fragDiv = document.createElement('div');
                         fragDiv.className = 'frag';

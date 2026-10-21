@@ -1,10 +1,11 @@
 (function () {
     const NS = (window.MemSim = window.MemSim || {});
     const {Memory, MemoryBlock, Segment, chooseBlock} = NS;
+    const config = NS.MEMORY_CONFIG;
 
     class SegmentedMemory extends Memory {
 
-        constructor(totalSize, systemProcess = null, segmentLimit = 262144) {
+        constructor(totalSize, systemProcess = null, segmentLimit = config.segmentSize) {
             super(totalSize, systemProcess);
             this.segmentLimit = segmentLimit;
             this.blocks.push(new MemoryBlock(this.systemSize, totalSize - this.systemSize));
@@ -14,22 +15,12 @@
             if (!process || !process.isWaiting()) {
                 throw new Error(`El proceso ${process ? process.id : ''} ya está cargado o no es válido`);
             }
-            const pieces = [];
-            process.sections.forEach((section) => {
-                let remaining = section.size;
-                let pieceIndex = 0;
-                while (remaining > 0) {
-                    const size = Math.min(remaining, this.segmentLimit);
-                    pieces.push({
-                        name: section.name,
-                        index: pieceIndex,
-                        size,
-                        permissions: section.permissions,
-                    });
-                    remaining -= size;
-                    pieceIndex += 1;
-                }
-            });
+            const pieces = process.splitSections(this.segmentLimit).map((section) => ({
+                name: section.name,
+                index: section.part,
+                size: section.size,
+                permissions: section.permissions,
+            }));
 
             const allocated = [];
             const segmentTable = [];
@@ -42,7 +33,7 @@
                     return null;
                 }
                 const block = this.splitAndAssign(chosen, process, piece, segmentNumber);
-                const segment = new Segment(segmentNumber, block.start, block.size, piece.permissions, piece.name);
+                const segment = new Segment({number: segmentNumber, base: block.start, limit: block.size, permissions: piece.permissions, sectionName: piece.name});
                 block.segment = segment;
                 segmentTable.push(segment);
                 allocated.push(block);
@@ -92,6 +83,13 @@
 
         translate(process, segmentNumber, offset, access = 'R') {
             return this.translateSegment(process, segmentNumber, offset, access);
+        }
+
+        getAllocationView(process) {
+            const rows = process.isLoaded() && process.segmentTable.length
+                ? process.segmentTable.map((segment) => ({number: segment.number, bin: segment.number.toString(2).padStart(6, '0'), name: segment.sectionName, limit: segment.limit, permissions: segment.permissions, base: segment.base, pages: []}))
+                : process.sections.map((section, number) => ({number, bin: number.toString(2).padStart(6, '0'), name: section.name, limit: section.size, permissions: section.permissions, base: null, pages: []}));
+            return {pid: process.id, name: process.name, status: process.status, totalSize: process.getSize(), segmentCount: rows.length, rows, footer: {occupiedBytes: process.isLoaded() ? process.getSize() : 0, reservedBytes: process.isLoaded() ? process.getSize() : 0, internalFragmentation: 0}};
         }
 
         free(process) {

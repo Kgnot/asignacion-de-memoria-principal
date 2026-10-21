@@ -13,9 +13,8 @@
                     <details data-role="configuration">
                         <summary>Cambiar esquema de gestión</summary>
                     <div class="radiogroup" data-role="scheme-radios">
-                        <label><input type="radio" name="scheme" value="unified" checked> Segmentación paginada unificada</label>
-                        <label><input type="radio" name="scheme" value="fixed"> Particiones estáticas — tamaño fijo</label>
-                        <label><input type="radio" name="scheme" value="variable"> Particiones estáticas — tamaño variable</label>
+                        <label><input type="radio" name="scheme" value="paged-segmented" checked> Segmentación paginada unificada</label>
+                        <label><input type="radio" name="scheme" value="static"> Particiones estáticas — tamaño fijo</label>
                         <label><input type="radio" name="scheme" value="dynamic"> Particiones dinámicas</label>
                         <label><input type="radio" name="scheme" value="segmented"> Segmentación</label>
                         <label><input type="radio" name="scheme" value="paging"> Paginación</label>
@@ -25,12 +24,6 @@
                         <label for="numPart">Número de particiones iguales</label>
                         <input type="number" id="numPart" value="8" min="2" max="32">
                         <div class="btnrow"><button type="button" data-action="apply-fixed">Recalcular particiones</button></div>
-                    </div>
-
-                    <div data-role="variable-controls" hidden>
-                        <label for="varSizes">Tamaños de partición (bytes, separados por coma)</label>
-                        <input type="text" id="varSizes" value="300,700,150,1500,450,2000,1000,10284">
-                        <div class="btnrow"><button type="button" data-action="apply-variable">Aplicar tamaños</button></div>
                     </div>
 
                     <div data-role="dynamic-controls" hidden>
@@ -70,8 +63,7 @@
         bindEvents() {
             this.querySelectorAll('input[name=scheme]').forEach((radio) => {
                 radio.addEventListener('change', (e) => {
-                    this.querySelector('[data-role="fixed-controls"]').hidden = e.target.value !== 'fixed';
-                    this.querySelector('[data-role="variable-controls"]').hidden = e.target.value !== 'variable';
+                    this.querySelector('[data-role="fixed-controls"]').hidden = e.target.value !== 'static';
                     this.querySelector('[data-role="dynamic-controls"]').hidden = e.target.value !== 'dynamic';
                     this.querySelector('[data-role="segmented-controls"]').hidden = e.target.value !== 'segmented';
                     this.querySelector('[data-role="paging-controls"]').hidden = e.target.value !== 'paging';
@@ -82,12 +74,6 @@
             this.querySelector('[data-action="apply-fixed"]').addEventListener('click', () => {
                 const count = parseInt(this.querySelector('#numPart').value, 10) || 8;
                 this.emit('apply-fixed', {count});
-            });
-
-            this.querySelector('[data-action="apply-variable"]').addEventListener('click', () => {
-                const raw = this.querySelector('#varSizes').value;
-                const sizes = raw.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
-                this.emit('apply-variable', {sizes});
             });
 
             this.querySelector('#algoSelect').addEventListener('change', (e) => {
@@ -114,8 +100,7 @@
         setScheme(scheme) {
             const radio = this.querySelector(`input[name=scheme][value="${scheme}"]`);
             if (radio) radio.checked = true;
-            this.querySelector('[data-role="fixed-controls"]').hidden = scheme !== 'fixed';
-            this.querySelector('[data-role="variable-controls"]').hidden = scheme !== 'variable';
+            this.querySelector('[data-role="fixed-controls"]').hidden = scheme !== 'static';
             this.querySelector('[data-role="dynamic-controls"]').hidden = scheme !== 'dynamic';
             this.querySelector('[data-role="segmented-controls"]').hidden = scheme !== 'segmented';
             this.querySelector('[data-role="paging-controls"]').hidden = scheme !== 'paging';

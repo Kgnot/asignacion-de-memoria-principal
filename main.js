@@ -2,20 +2,20 @@
 // 2^24
 (function () {
     const NS = window.MemSim;
-    const {StaticMemory, MemoryManager, ALLOCATION_ALGORITHMS, createDefaultProcesses, createSystemProcess, toHex} = NS;
+    const {StaticMemory, MemoryManager, MEMORY_SCHEMES, ALLOCATION_ALGORITHMS, createDefaultProcesses, createSystemProcess, toHex} = NS;
 
-    const TOTAL_BYTES = 16777216;
+    const TOTAL_BYTES = NS.MEMORY_CONFIG.ramBytes;
 
 
     class App {
         constructor(root) {
             this.root = root;
-            this.scheme = 'unified';
+            this.scheme = MEMORY_SCHEMES.PAGED_SEGMENTED;
             this.algorithm = ALLOCATION_ALGORITHMS.FIRST_FIT;
             this.compactionEnabled = false;
             this.processes = [];
             this.systemProcess = createSystemProcess();
-            this.manager = new MemoryManager(TOTAL_BYTES, this.systemProcess);
+            this.manager = new MemoryManager(TOTAL_BYTES, this.systemProcess, {autoCompact: true});
             this.memory = null;
 
             this.schemePanel = root.querySelector('scheme-panel');
@@ -28,13 +28,13 @@
             this.processDetailsModal = root.querySelector('process-details-modal');
 
             this.bindEvents();
-            this.applyScheme('unified', {});
+            this.applyScheme(MEMORY_SCHEMES.PAGED_SEGMENTED, {});
             this.log('Simulador listo. Esquema inicial: segmentación paginada unificada.');
         }
 
         bindEvents() {
             this.root.addEventListener('scheme-change', (e) => this.handleSchemeChange(e.detail.scheme));
-            this.root.addEventListener('apply-fixed', (e) => this.applyScheme('fixed', {count: e.detail.count}, true));
+            this.root.addEventListener('apply-fixed', (e) => this.applyScheme(MEMORY_SCHEMES.STATIC, {count: e.detail.count}, true));
             this.root.addEventListener('apply-variable', (e) => this.applyScheme('variable', {sizes: e.detail.sizes}, true));
             this.root.addEventListener('algorithm-change', (e) => {
                 this.algorithm = e.detail.algorithm;
@@ -62,6 +62,15 @@
                     });
                 }
             });
+            this.root.addEventListener('process-add', (e) => this.addCustomProcess(e.detail));
+        }
+
+        addCustomProcess({name, segments}) {
+            const nextId = `P${this.processes.length + 1}`;
+            const newProc = new NS.ApplicationProcess(nextId, name, segments);
+            this.processes.push(newProc);
+            this.log(`✓ Proceso ${nextId} (${name}, ${newProc.getSize()} bytes) agregado a la lista.`, 'good');
+            this.render();
         }
 
         handleSchemeChange(scheme) {
@@ -69,7 +78,7 @@
                 this.schemePanel.setScheme(this.scheme);
                 return;
             }
-            const params = scheme === 'fixed' ? {count: 8} : scheme === 'variable'
+            const params = scheme === MEMORY_SCHEMES.STATIC ? {count: 8} : scheme === 'variable'
                 ? {sizes: [300000, 700000, 150000, 1500000, 450000, 2000000, 1000000]}
                 : {};
             this.applyScheme(scheme, params, true);
@@ -78,17 +87,18 @@
 
         schemeLabel(scheme) {
             return {
-                fixed: 'particiones fijas iguales',
+                static: 'particiones fijas iguales',
                 variable: 'particiones fijas variables',
                 dynamic: 'particiones dinámicas',
                 segmented: 'segmentación',
                 paging: 'paginación',
-                unified: 'segmentación paginada unificada',
+                'paged-segmented': 'segmentación paginada unificada',
             }[scheme];
         }
 
         applyScheme(scheme, params = {}, clearLog = false, isReset = false) {
             if (clearLog) this.eventLog.clear();
+            this.processDetailsModal.close();
             this.scheme = scheme;
             this.lastParams = params;
 
@@ -105,6 +115,7 @@
                 return;
             }
 
+            this.processes = [this.systemProcess, ...createDefaultProcesses()];
             this.processes = [this.systemProcess, ...createDefaultProcesses()];
             this.compactionEnabled = false;
             this.schemePanel.setScheme(scheme);
@@ -136,15 +147,17 @@
                 return;
             }
 
-            if (this.scheme === 'dynamic') {
+            if (this.scheme === MEMORY_SCHEMES.DYNAMIC) {
                 this.log(`✓ ${process.id} asignado en ${toHex(chosenBlock.start)} (exacto, ${needed} bytes).`, 'good');
-            } else if (this.scheme === 'segmented') {
+            } else if (this.scheme === MEMORY_SCHEMES.SEGMENTED) {
                 const count = process.segmentBlocks.length;
                 this.log(`✓ ${process.id} segmentado en ${count} bloque(s) de hasta 262144 bytes.`, 'good');
-            } else if (this.scheme === 'paging') {
+            } else if (this.scheme === MEMORY_SCHEMES.PAGING) {
                 this.log(`✓ ${process.id} paginado en ${process.pageTable.length} marco(s).`, 'good');
+            } else if (this.scheme === MEMORY_SCHEMES.PAGED_SEGMENTED) {
+                this.log(`✓ ${process.id} cargado con segmentación paginada (${process.segmentTable.length} segmentos).`, 'good');
             } else {
-                const frag = chosenBlock.internalFragmentation(process);
+                const frag = this.memory.getInternalFragmentation(process);
                 this.log(`✓ ${process.id} asignado a partición [${toHex(chosenBlock.start)}, ${chosenBlock.size} bytes] — fragmentación interna: ${frag} bytes.`, 'good');
             }
 
@@ -185,23 +198,21 @@
 
         compact() {
             if (!['dynamic', 'segmented'].includes(this.scheme) || typeof this.memory.compact !== 'function') return;
-            const processesById = new Map(this.processes.map((p) => [p.id, p]));
-            this.memory.compact(processesById);
+            this.manager.compact();
             this.log('⇥ Compactación ejecutada: todos los procesos desplazados al inicio, hueco único al final.', 'good');
             this.render();
         }
 
         computeInternalFragmentation() {
-            if (this.scheme === 'segmented' || this.scheme === 'dynamic') return 0;
-            if (this.scheme === 'paging') {
+            if (this.scheme === MEMORY_SCHEMES.SEGMENTED || this.scheme === MEMORY_SCHEMES.DYNAMIC) return 0;
+            if (this.scheme === MEMORY_SCHEMES.PAGING || this.scheme === MEMORY_SCHEMES.PAGED_SEGMENTED) {
                 return this.processes
                     .filter((process) => process.isLoaded())
                     .reduce((sum, process) => sum + this.memory.getInternalFragmentation(process), 0);
             }
-            return this.memory.getOccupiedBlocks().reduce((sum, block) => {
-                const proc = this.processes.find((p) => p.id === block.processId);
-                return sum + (proc ? block.internalFragmentation(proc) : 0);
-            }, 0);
+            return this.processes
+                .filter((process) => process.isLoaded())
+                .reduce((sum, process) => sum + this.memory.getInternalFragmentation(process), 0);
         }
 
         render() {

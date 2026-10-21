@@ -8,15 +8,18 @@
         constructor(start, size, metadata = {}) {
             this.start = start;
             this.size = size;
-            this.segmentName = metadata.segmentName || null;
-            this.segmentIndex = metadata.segmentIndex ?? null;
-            this.segmentNumber = metadata.segmentNumber ?? null;
-            this.permissions = metadata.permissions || null;
-            this.pageNumber = metadata.pageNumber ?? null;
-            this.frameNumber = metadata.frameNumber ?? null;
+            this.info = {
+                segmentName: metadata.segmentName || null,
+                segmentIndex: metadata.segmentIndex ?? null,
+                segmentNumber: metadata.segmentNumber ?? null,
+                permissions: metadata.permissions || null,
+                pageNumber: metadata.pageNumber ?? null,
+                frameNumber: metadata.frameNumber ?? null,
+            };
 
             this.status = BLOCK_STATES.FREE;
             this.processId = null;
+            this.segment = null;
         }
 
         // devolvemos el final
@@ -51,7 +54,21 @@
         release() {
             this.dispatch(BLOCK_EVENTS.RELEASE);
             this.processId = null;
+            this.info = {};
         }
+
+        get segmentName() { return this.info.segmentName; }
+        set segmentName(value) { this.info.segmentName = value; }
+        get segmentIndex() { return this.info.segmentIndex; }
+        set segmentIndex(value) { this.info.segmentIndex = value; }
+        get segmentNumber() { return this.info.segmentNumber; }
+        set segmentNumber(value) { this.info.segmentNumber = value; }
+        get permissions() { return this.info.permissions; }
+        set permissions(value) { this.info.permissions = value; }
+        get pageNumber() { return this.info.pageNumber; }
+        set pageNumber(value) { this.info.pageNumber = value; }
+        get frameNumber() { return this.info.frameNumber; }
+        set frameNumber(value) { this.info.frameNumber = value; }
 
         isFree() {
             return this.status === BLOCK_STATES.FREE;
@@ -61,11 +78,6 @@
             return this.status === BLOCK_STATES.OCCUPIED;
         }
 
-        // TODO
-        internalFragmentation(process) {
-            if (!process) return 0;
-            return this.size - process.getSize();
-        }
     }
 
     NS.MemoryBlock = MemoryBlock;

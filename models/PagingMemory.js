@@ -1,22 +1,18 @@
 (function () {
     const NS = (window.MemSim = window.MemSim || {});
-    const {Memory, MemoryBlock, chooseBlock} = NS;
+    const {Memory, MemoryBlock} = NS;
+    const config = NS.MEMORY_CONFIG;
 
     class PagingMemory extends Memory {
 
-        constructor(totalSize, systemProcess = null, pageSize = 65536) {
+        constructor(totalSize, systemProcess = null, pageSize = config.pageSize) {
             if (totalSize % pageSize !== 0) {
                 throw new Error(`La RAM de ${totalSize} bytes debe ser múltiplo del tamaño de página ${pageSize}`);
             }
-            super(totalSize, systemProcess, pageSize * 16);
+            super(totalSize, systemProcess, pageSize * config.systemFrameCount);
             this.pageSize = pageSize;
             this.frameCount = totalSize / pageSize;
-            this.frameTable = Array(this.frameCount).fill(-1);
             this.systemFrameCount = systemProcess ? this.systemSize / pageSize : 0;
-
-            if (systemProcess) {
-                this.frameTable.fill(0, 0, this.systemFrameCount);
-            }
             for (let frame = this.systemFrameCount; frame < this.frameCount; frame += 1) {
                 this.blocks.push(new MemoryBlock(frame * pageSize, pageSize, {frameNumber: frame}));
             }
@@ -58,7 +54,6 @@
                 chosen.sectionName = page.sectionName;
                 chosen.permissions = page.permissions;
                 const frame = chosen.start / this.pageSize;
-                this.frameTable[frame] = process.id;
                 pageTable.push({
                     page: page.pageNumber,
                     frame,
@@ -76,12 +71,17 @@
         }
 
         releasePage(block) {
-            const frame = block.start / this.pageSize;
             block.release();
             block.pageNumber = null;
             block.sectionName = null;
             block.permissions = null;
-            this.frameTable[frame] = -1;
+        }
+
+        get frameTable() {
+            return this.blocks.reduce((table, block) => {
+                table[block.start / this.pageSize] = block.isFree() ? -1 : block.processId === 'SO' ? 0 : block.processId;
+                return table;
+            }, Array(this.frameCount).fill(-1));
         }
 
         free(process) {
@@ -92,11 +92,11 @@
         }
 
         translatePage(process, logicalAddress, access = 'R') {
-            if (!Number.isInteger(logicalAddress) || logicalAddress < 0 || logicalAddress >= 16777216) {
+            if (!Number.isInteger(logicalAddress) || logicalAddress < 0 || logicalAddress >= config.ramBytes) {
                 throw new Error(`Dirección lógica inválida: ${logicalAddress}`);
             }
-            const page = logicalAddress >>> 16;
-            const offset = logicalAddress & 0xFFFF;
+            const page = logicalAddress >>> config.offsetBits;
+            const offset = logicalAddress & (config.pageSize - 1);
             const entry = process.pageTable.find((candidate) => candidate.page === page);
             if (!entry) throw new Error(`La página ${page} no está cargada en ${process.id}`);
             if (offset >= entry.validBytes) {
@@ -106,6 +106,10 @@
                 throw new Error(`Error de protección: acceso ${access} no permitido en ${entry.sectionName}`);
             }
             return entry.frame * this.pageSize + offset;
+        }
+
+        translate(process, logicalAddress, access = 'R') {
+            return this.translatePage(process, logicalAddress, access);
         }
 
         getInternalFragmentation(process) {
