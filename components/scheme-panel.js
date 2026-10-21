@@ -14,6 +14,7 @@
                         <label><input type="radio" name="scheme" value="fixed" checked> Particiones estáticas — tamaño fijo</label>
                         <label><input type="radio" name="scheme" value="variable"> Particiones estáticas — tamaño variable</label>
                         <label><input type="radio" name="scheme" value="dynamic"> Particiones dinámicas</label>
+                        <label><input type="radio" name="scheme" value="segmented"> Segmentación</label>
                     </div>
 
                     <div data-role="fixed-controls">
@@ -39,6 +40,10 @@
                         <p class="note">Sin compactación: al liberar un proceso solo se fusionan huecos <em>adyacentes</em>. La fragmentación externa dispersa no se elimina.</p>
                     </div>
 
+                    <div data-role="segmented-controls" hidden>
+                        <p class="note">Cada segmento se coloca por separado. Los segmentos mayores de 256 KiB se dividen en varias partes.</p>
+                    </div>
+
                     <label for="algoSelect">Algoritmo de asignación</label>
                     <select id="algoSelect">
                         <option value="FIRST_FIT">Primer ajuste (First Fit)</option>
@@ -59,6 +64,7 @@
                     this.querySelector('[data-role="fixed-controls"]').hidden = e.target.value !== 'fixed';
                     this.querySelector('[data-role="variable-controls"]').hidden = e.target.value !== 'variable';
                     this.querySelector('[data-role="dynamic-controls"]').hidden = e.target.value !== 'dynamic';
+                    this.querySelector('[data-role="segmented-controls"]').hidden = e.target.value !== 'segmented';
                     this.emit('scheme-change', {scheme: e.target.value});
                 });
             });
@@ -101,6 +107,7 @@
             this.querySelector('[data-role="fixed-controls"]').hidden = scheme !== 'fixed';
             this.querySelector('[data-role="variable-controls"]').hidden = scheme !== 'variable';
             this.querySelector('[data-role="dynamic-controls"]').hidden = scheme !== 'dynamic';
+            this.querySelector('[data-role="segmented-controls"]').hidden = scheme !== 'segmented';
         }
 
         setCompaction(enabled) {

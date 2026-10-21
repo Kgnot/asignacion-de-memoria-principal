@@ -40,7 +40,7 @@
                     const color = colorForIndex(processIndex.get(block.processId) ?? 0);
                     div.style.background = color;
 
-                    const frag = block.internalFragmentation(proc);
+                    const frag = this._memory instanceof NS.SegmentedMemory ? 0 : block.internalFragmentation(proc);
                     if (frag > 0) {
                         const fragDiv = document.createElement('div');
                         fragDiv.className = 'frag';
@@ -53,7 +53,10 @@
                     lbl.textContent = block.size / total > 0.04 ? block.processId : '';
                     div.appendChild(lbl);
 
-                    div.title = `${block.processId} · ${toHex(block.start)}–${toHex(block.getEnd())} · ${block.size} KiB partición · ${proc ? proc.getSize() : 0} KiB usados${frag > 0 ? ` · ${frag} KiB frag. interna` : ''}`;
+                    const unit = block.segmentName
+                        ? `segmento ${block.segmentName}.${block.segmentIndex}`
+                        : `${block.size} KiB partición`;
+                    div.title = `${block.processId} · ${toHex(block.start)}–${toHex(block.getEnd())} · ${unit} · ${block.size} KiB${frag > 0 ? ` · ${frag} KiB frag. interna` : ''}`;
                 } else {
                     div.title = `Libre · ${toHex(block.start)}–${toHex(block.getEnd())} · ${block.size} KiB`;
                 }

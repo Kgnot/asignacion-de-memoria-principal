@@ -2,7 +2,7 @@
 // 2^24
 (function () {
     const NS = window.MemSim;
-    const {StaticMemory, DynamicMemory, ALLOCATION_ALGORITHMS, createDefaultProcesses, toHex} = NS;
+    const {StaticMemory, DynamicMemory, SegmentedMemory, ALLOCATION_ALGORITHMS, createDefaultProcesses, toHex} = NS;
 
     const TOTAL_KIB = 16384; // son los 16 MiB
 
@@ -62,6 +62,7 @@
                 fixed: 'particiones fijas iguales',
                 variable: 'particiones fijas variables',
                 dynamic: 'particiones dinámicas',
+                segmented: 'segmentación',
             }[scheme];
         }
 
@@ -76,7 +77,9 @@
                 } else if (scheme === 'variable') {
                     this.memory = StaticMemory.customPartitions(TOTAL_KIB, params.sizes || []);
                 } else {
-                    this.memory = new DynamicMemory(TOTAL_KIB);
+                    this.memory = scheme === 'segmented'
+                        ? new SegmentedMemory(TOTAL_KIB)
+                        : new DynamicMemory(TOTAL_KIB);
                 }
             } catch (err) {
                 this.log(`✗ ${err.message}`, 'warn');
@@ -106,6 +109,9 @@
 
             if (this.scheme === 'dynamic') {
                 this.log(`✓ ${process.id} asignado en ${toHex(chosenBlock.start)} (exacto, ${needed} KiB) — sin fragmentación interna.`, 'good');
+            } else if (this.scheme === 'segmented') {
+                const count = process.segmentBlocks.length;
+                this.log(`✓ ${process.id} segmentado en ${count} bloque(s), con segmentos de hasta 256 KiB.`, 'good');
             } else {
                 const frag = chosenBlock.internalFragmentation(process);
                 this.log(`✓ ${process.id} asignado a partición [${toHex(chosenBlock.start)}, ${chosenBlock.size} KiB] — fragmentación interna: ${frag} KiB.`, 'good');
@@ -132,6 +138,7 @@
         }
 
         computeInternalFragmentation() {
+            if (this.scheme === 'segmented' || this.scheme === 'dynamic') return 0;
             return this.memory.getOccupiedBlocks().reduce((sum, block) => {
                 const proc = this.processes.find((p) => p.id === block.processId);
                 return sum + (proc ? block.internalFragmentation(proc) : 0);

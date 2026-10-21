@@ -13,7 +13,7 @@
     <header>
         <div class="kicker">SO · GESTIÓN DE MEMORIA</div>
         <h1>Simulador de asignación de memoria principal</h1>
-        <p>Espacio direccionable de 16 MiB (0x000000 – 0xFFFFFF). Compara particiones estáticas de tamaño fijo, particiones estáticas de tamaño variable y particiones dinámicas con y sin compactación, usando primer/mejor/peor ajuste.</p>
+        <p>Espacio direccionable de 16 MiB (0x000000 – 0xFFFFFF). Compara particiones estáticas, particiones dinámicas y segmentación con primer/mejor/peor ajuste.</p>
     </header>
 
     <div class="layout">
@@ -59,6 +59,7 @@
 <script src="models/Memory.js"></script>
 <script src="models/StaticMemory.js"></script>
 <script src="models/DynamicMemory.js"></script>
+<script src="models/SegmentedMemory.js"></script>
 <script src="utils/createSegments.js"></script>
 <script src="data/DefaultProcessData.js"></script>
 

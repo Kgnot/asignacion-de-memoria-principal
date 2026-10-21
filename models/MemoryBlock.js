@@ -5,9 +5,11 @@
     class MemoryBlock {
 
 
-        constructor(start, size) {
+        constructor(start, size, metadata = {}) {
             this.start = start;
             this.size = size;
+            this.segmentName = metadata.segmentName || null;
+            this.segmentIndex = metadata.segmentIndex ?? null;
 
             this.status = BLOCK_STATES.FREE;
             this.processId = null;

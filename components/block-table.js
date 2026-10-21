@@ -11,7 +11,7 @@
                         <thead>
                             <tr>
                                 <th>#</th><th>Inicio</th><th>Fin</th><th>Tamaño (KiB)</th>
-                                <th>Estado</th><th>Proceso</th><th>Frag. interna</th>
+                                <th>Estado</th><th>Proceso</th><th>Segmento</th><th>Frag. interna</th>
                             </tr>
                         </thead>
                         <tbody data-role="rows"></tbody>
@@ -34,7 +34,7 @@
             const sorted = [...this._memory.blocks].sort((a, b) => a.start - b.start);
             sorted.forEach((block, i) => {
                 const proc = block.isOccupied() ? this._processes.find((p) => p.id === block.processId) : null;
-                const frag = proc ? block.internalFragmentation(proc) : '—';
+                const frag = block.segmentName ? 0 : proc ? block.internalFragmentation(proc) : '—';
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${i}</td>
@@ -43,6 +43,7 @@
                     <td>${block.size}</td>
                     <td><span class="tag ${block.isOccupied() ? 'tag-busy' : 'tag-free'}">${block.isOccupied() ? 'Ocupado' : 'Libre'}</span></td>
                     <td class="name-cell">${proc ? proc.id + ' — ' + proc.name : '—'}</td>
+                    <td>${block.segmentName ? `${block.segmentName}.${block.segmentIndex}` : '—'}</td>
                     <td>${frag}</td>
                 `;
                 tbody.appendChild(tr);
